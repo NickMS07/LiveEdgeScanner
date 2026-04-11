@@ -22,4 +22,4 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(500, cors); res.end(JSON.stringify({ ok: false, error: 'Server error' }));
   }
 });
-server.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`API running on http://localhost:${PORT}`));//why when thai is hosted non vercel?
