@@ -1,13 +1,1190 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LiveEdge Scanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:        #050A0E;
+      --surface:   #0B1419;
+      --border:    #1A2830;
+      --accent:    #00FFB2;
+      --accent2:   #FF4D6D;
+      --accent3:   #FFD166;
+      --text:      #E0EAF0;
+      --muted:     #4A6470;
+      --up:        #00FFB2;
+      --down:      #FF4D6D;
+      --mono:      'Space Mono', monospace;
+      --sans:      'Syne', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Grid noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,178,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,178,0.015) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(5,10,14,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .status-live {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+    }
+
+    .status-live::before {
+      content: '';
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    /* ── Ticker ─────────────────────────────── */
+    .ticker-wrap {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      overflow: hidden;
+      height: 34px;
+      position: relative;
+    }
+
+    .ticker-track {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      white-space: nowrap;
+      animation: ticker 35s linear infinite;
+    }
+
+    @keyframes ticker {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .ticker-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 28px;
+      font-size: 11px;
+      border-right: 1px solid var(--border);
+    }
+
+    .ticker-label { color: var(--muted); }
+    .ticker-val   { font-weight: 700; }
+    .up   { color: var(--up); }
+    .down { color: var(--down); }
+    .neutral { color: var(--accent3); }
+
+    /* ── Layout ─────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 220px 1fr 280px;
+      min-height: calc(100vh - 94px);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Sidebar ─────────────────────────────── */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding: 20px 0;
+    }
+
+    .sidebar-section {
+      padding: 0 16px;
+      margin-bottom: 24px;
+    }
+
+    .sidebar-label {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .sport-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 2px;
+    }
+
+    .sport-btn:hover  { background: var(--surface); color: var(--text); }
+    .sport-btn.active { background: rgba(0,255,178,0.08); color: var(--accent); border: 1px solid rgba(0,255,178,0.2); }
+
+    .sport-count {
+      background: var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 10px;
+    }
+
+    .sport-btn.active .sport-count {
+      background: rgba(0,255,178,0.15);
+      color: var(--accent);
+    }
+
+    /* ── Main ─────────────────────────────────── */
+    .main {
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .section-title {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 20px;
+      letter-spacing: -0.5px;
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .filter-chip {
+      padding: 5px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-chip:hover  { border-color: var(--accent); color: var(--accent); }
+    .filter-chip.active { background: rgba(0,255,178,0.1); border-color: var(--accent); color: var(--accent); }
+
+    /* ── Edge Cards ───────────────────────────── */
+    .edges-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .edge-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.15s;
+      cursor: pointer;
+    }
+
+    .edge-card:hover { border-color: rgba(0,255,178,0.3); transform: translateY(-1px); }
+
+    /* left accent bar */
+    .edge-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      border-radius: 10px 0 0 10px;
+    }
+
+    .edge-card.confidence-high   { --conf-color: var(--up); }
+    .edge-card.confidence-medium { --conf-color: var(--accent3); }
+    .edge-card.confidence-low    { --conf-color: var(--muted); }
+    .edge-card::before { background: var(--conf-color); }
+
+    /* flash animation when odds update */
+    @keyframes flash-update {
+      0%   { background: rgba(0,255,178,0.12); }
+      100% { background: var(--surface); }
+    }
+
+    .edge-card.flash { animation: flash-update 0.6s ease-out; }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .game-info {}
+    .game-matchup {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.3px;
+      margin-bottom: 3px;
+    }
+
+    .game-meta {
+      font-size: 10px;
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+    }
+
+    .sport-badge {
+      background: var(--border);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .edge-badge {
+      text-align: right;
+    }
+
+    .edge-value {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 26px;
+      color: var(--conf-color);
+      line-height: 1;
+      transition: color 0.3s;
+    }
+
+    .edge-label {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      margin-top: 2px;
+    }
+
+    /* Odds comparison row */
+    .odds-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .odds-cell {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      position: relative;
+    }
+
+    .odds-source {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .odds-values {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .odds-team-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .odds-team { color: var(--muted); font-size: 10px; }
+
+    .odds-num {
+      font-weight: 700;
+      transition: color 0.4s, transform 0.2s;
+    }
+
+    /* Animated number change */
+    @keyframes num-up {
+      0%   { transform: translateY(4px); color: var(--up); }
+      100% { transform: translateY(0); }
+    }
+
+    @keyframes num-down {
+      0%   { transform: translateY(-4px); color: var(--down); }
+      100% { transform: translateY(0); }
+    }
+
+    .odds-num.moved-up   { animation: num-up   0.4s ease-out; }
+    .odds-num.moved-down { animation: num-down 0.4s ease-out; }
+
+    .odds-arrow {
+      font-size: 9px;
+      margin-left: 3px;
+    }
+
+    .odds-cell.polymarket { border-color: rgba(0,255,178,0.25); background: rgba(0,255,178,0.04); }
+
+    .confidence-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 9px;
+      letter-spacing: 1px;
+      font-weight: 700;
+      background: rgba(255,255,255,0.05);
+      color: var(--conf-color);
+      border: 1px solid var(--conf-color);
+    }
+
+    /* ── Right Panel ────────────────────────── */
+    .right-panel {
+      border-left: 1px solid var(--border);
+      padding: 20px 16px;
+      overflow-y: auto;
+    }
+
+    .panel-section {
+      margin-bottom: 28px;
+    }
+
+    .panel-title {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    /* Edge chart sparkline */
+    .sparkline-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .spark-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .spark-val { color: var(--accent); font-weight: 700; }
+
+    canvas.sparkline {
+      width: 100%;
+      height: 36px;
+      display: block;
+    }
+
+    /* Alert feed */
+    .alert-item {
+      display: flex;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      animation: slide-in 0.3s ease-out;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateX(10px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .alert-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      margin-top: 3px;
+      flex-shrink: 0;
+    }
+
+    .alert-dot.high   { background: var(--up); box-shadow: 0 0 6px var(--up); }
+    .alert-dot.medium { background: var(--accent3); }
+    .alert-dot.low    { background: var(--muted); }
+
+    .alert-body { flex: 1; }
+    .alert-game { color: var(--text); font-weight: 700; margin-bottom: 2px; }
+    .alert-detail { color: var(--muted); font-size: 10px; }
+    .alert-time   { color: var(--muted); font-size: 10px; white-space: nowrap; }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .stat-val {
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 22px;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .stat-lbl {
+      font-size: 9px;
+      color: var(--muted);
+      margin-top: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── WebSocket connection banner ─── */
+    .ws-banner {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 24px;
+      background: rgba(255,77,109,0.1);
+      border-bottom: 1px solid rgba(255,77,109,0.2);
+      font-size: 11px;
+      color: var(--accent2);
+    }
+
+    .ws-banner.show { display: flex; }
+
+    /* ── Empty state ─────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state h3 { font-family: var(--sans); font-size: 18px; margin-bottom: 8px; color: var(--text); }
+    .empty-state p  { font-size: 12px; line-height: 1.6; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────── -->
+<header>
+  <div class="logo">
+    <span class="logo-dot"></span>
+    LiveEdge<span style="color:var(--accent)">Scanner</span>
+  </div>
+  <div class="status-bar">
+    <span class="status-live" id="ws-status">LIVE</span>
+    <span id="last-update">--</span>
+    <span style="color:var(--border)">|</span>
+    <span id="scan-countdown">Next scan: --s</span>
+  </div>
+</header>
+
+<!-- ── WS Disconnected Banner ──────────────── -->
+<div class="ws-banner" id="ws-banner">
+  ⚠ Real-time WebSocket disconnected — showing simulated data
+</div>
+
+<!-- ── Ticker ──────────────────────────────── -->
+<div class="ticker-wrap">
+  <div class="ticker-track" id="ticker-track">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<!-- ── Main Layout ─────────────────────────── -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Markets</div>
+      <button class="sport-btn active" data-sport="all">
+        All Sports <span class="sport-count" id="count-all">0</span>
+      </button>
+      <button class="sport-btn" data-sport="nba">
+        🏀 NBA <span class="sport-count" id="count-nba">0</span>
+      </button>
+      <button class="sport-btn" data-sport="nfl">
+        🏈 NFL <span class="sport-count" id="count-nfl">0</span>
+      </button>
+      <button class="sport-btn" data-sport="mlb">
+        ⚾ MLB <span class="sport-count" id="count-mlb">0</span>
+      </button>
+      <button class="sport-btn" data-sport="nhl">
+        🏒 NHL <span class="sport-count" id="count-nhl">0</span>
+      </button>
+      <button class="sport-btn" data-sport="ufc">
+        🥊 UFC <span class="sport-count" id="count-ufc">0</span>
+      </button>
+      <button class="sport-btn" data-sport="soccer">
+        ⚽ Soccer <span class="sport-count" id="count-soccer">0</span>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Platforms</div>
+      <button class="sport-btn active" data-source="all">All Sources</button>
+      <button class="sport-btn" data-source="polymarket">Polymarket</button>
+      <button class="sport-btn" data-source="kalshi">Kalshi</button>
+      <button class="sport-btn" data-source="draftkings">DraftKings</button>
+      <button class="sport-btn" data-source="fanduel">FanDuel</button>
+      <button class="sport-btn" data-source="betmgm">BetMGM</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Min Edge</div>
+      <button class="sport-btn active" data-edge="0">Any Edge</button>
+      <button class="sport-btn" data-edge="3">3¢+</button>
+      <button class="sport-btn" data-edge="5">5¢+</button>
+      <button class="sport-btn" data-edge="10">10¢+</button>
+    </div>
+  </aside>
+
+  <!-- Main panel -->
+  <main class="main">
+    <div class="section-header">
+      <div>
+        <div class="section-title">Live Edges</div>
+      </div>
+      <div class="filter-row">
+        <button class="filter-chip active" data-sort="edge">By Edge</button>
+        <button class="filter-chip" data-sort="sport">By Sport</button>
+        <button class="filter-chip" data-sort="confidence">By Confidence</button>
+      </div>
+    </div>
+
+    <div class="edges-grid" id="edges-grid">
+      <!-- cards injected here -->
+    </div>
+  </main>
+
+  <!-- Right panel -->
+  <aside class="right-panel">
+    <div class="panel-section">
+      <div class="panel-title">Session Stats</div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-val" id="stat-edges">0</div>
+          <div class="stat-lbl">EDGES FOUND</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-scans">0</div>
+          <div class="stat-lbl">SCANS RUN</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-high">0</div>
+          <div class="stat-lbl">HIGH CONF</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" id="stat-avg">0¢</div>
+          <div class="stat-lbl">AVG EDGE</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Edge History</div>
+      <div class="sparkline-wrap">
+        <div class="spark-label">
+          <span>Edges detected / scan</span>
+          <span class="spark-val" id="spark-latest">--</span>
+        </div>
+        <canvas class="sparkline" id="sparkline" width="240" height="36"></canvas>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">Alert Feed</div>
+      <div id="alert-feed">
+        <div style="color:var(--muted);font-size:11px;padding:10px 0">Waiting for edges...</div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// LIVE EDGE SCANNER — Frontend Engine
+// ═══════════════════════════════════════════════════════
+
+const WS_URL = window.__WS_URL__ || 'ws://localhost:4000/socket/websocket';
+const PHOENIX_API = window.__API_URL__ || 'http://localhost:4000';
+
+// ── State ────────────────────────────────────────────
+let state = {
+  games: {},           // game_id → game object
+  alerts: [],
+  stats: { edges: 0, scans: 0, high: 0, edgeHistory: [] },
+  filter: { sport: 'all', sort: 'edge', minEdge: 0 },
+  ws: null,
+  wsConnected: false,
+  scanCountdown: 60,
+};
+
+// ── Simulated seed data (shown before WS connects) ──
+const SEED_GAMES = [
+  {
+    game_id: 'nba-bos-mia', sport: 'nba', home: 'MIA', away: 'BOS',
+    sources: {
+      polymarket: { home: 0.38, away: 0.62 },
+      draftkings: { home: 0.45, away: 0.55 },
+      fanduel:    { home: 0.44, away: 0.56 },
+      betmgm:     { home: 0.46, away: 0.54 },
+      kalshi:     { home: 0.43, away: 0.57 },
+    },
+    edge: { side: 'home', team: 'MIA', polymarket_price: 0.38, fair_value: 0.445, edge_cents: 6, confidence: 'medium' }
+  },
+  {
+    game_id: 'nba-okc-dal', sport: 'nba', home: 'DAL', away: 'OKC',
+    sources: {
+      polymarket: { home: 0.29, away: 0.71 },
+      draftkings: { home: 0.40, away: 0.60 },
+      fanduel:    { home: 0.39, away: 0.61 },
+      betmgm:     { home: 0.42, away: 0.58 },
+      kalshi:     { home: 0.41, away: 0.59 },
+    },
+    edge: { side: 'home', team: 'DAL', polymarket_price: 0.29, fair_value: 0.405, edge_cents: 12, confidence: 'high' }
+  },
+  {
+    game_id: 'mlb-nyy-bos', sport: 'mlb', home: 'BOS', away: 'NYY',
+    sources: {
+      polymarket: { home: 0.44, away: 0.56 },
+      draftkings: { home: 0.50, away: 0.50 },
+      fanduel:    { home: 0.51, away: 0.49 },
+      betmgm:     { home: 0.49, away: 0.51 },
+      kalshi:     { home: 0.52, away: 0.48 },
+    },
+    edge: { side: 'home', team: 'BOS', polymarket_price: 0.44, fair_value: 0.505, edge_cents: 7, confidence: 'medium' }
+  },
+  {
+    game_id: 'ufc-jones-stipe', sport: 'ufc', home: 'Stipe', away: 'Jones',
+    sources: {
+      polymarket: { home: 0.22, away: 0.78 },
+      draftkings: { home: 0.28, away: 0.72 },
+      fanduel:    { home: 0.27, away: 0.73 },
+      betmgm:     { home: 0.29, away: 0.71 },
+      kalshi:     { home: 0.25, away: 0.75 },
+    },
+    edge: { side: 'home', team: 'Stipe', polymarket_price: 0.22, fair_value: 0.273, edge_cents: 5, confidence: 'low' }
+  },
+  {
+    game_id: 'nhl-tb-fla', sport: 'nhl', home: 'FLA', away: 'TB',
+    sources: {
+      polymarket: { home: 0.55, away: 0.45 },
+      draftkings: { home: 0.48, away: 0.52 },
+      fanduel:    { home: 0.47, away: 0.53 },
+      betmgm:     { home: 0.49, away: 0.51 },
+      kalshi:     { home: 0.50, away: 0.50 },
+    },
+    edge: { side: 'away', team: 'TB', polymarket_price: 0.45, fair_value: 0.515, edge_cents: 6, confidence: 'medium' }
+  },
+  {
+    game_id: 'nba-gsw-lac', sport: 'nba', home: 'LAC', away: 'GSW',
+    sources: {
+      polymarket: { home: 0.61, away: 0.39 },
+      draftkings: { home: 0.55, away: 0.45 },
+      fanduel:    { home: 0.54, away: 0.46 },
+      betmgm:     { home: 0.56, away: 0.44 },
+      kalshi:     { home: 0.53, away: 0.47 },
+    },
+    edge: { side: 'home', team: 'LAC', polymarket_price: 0.61, fair_value: 0.545, edge_cents: 6, confidence: 'medium' }
+  },
+];
+
+function seedData() {
+  SEED_GAMES.forEach(g => {
+    state.games[g.game_id] = JSON.parse(JSON.stringify(g));
+  });
+  state.stats.scans = 1;
+  state.stats.edges = Object.values(state.games).filter(g => g.edge).length;
+  state.stats.high  = Object.values(state.games).filter(g => g.edge?.confidence === 'high').length;
+  state.stats.edgeHistory = [2, 3, 4, 3, 5, 6, 6];
+  renderAll();
+}
+
+// ── WebSocket (Phoenix Channels) ─────────────────────
+function connectWS() {
+  try {
+    const ws = new WebSocket(`${WS_URL}?vsn=2.0.0`);
+    state.ws = ws;
+
+    ws.onopen = () => {
+      state.wsConnected = true;
+      document.getElementById('ws-banner').classList.remove('show');
+      // Join edges:all channel
+      ws.send(JSON.stringify([null, '1', 'edges:all', 'phx_join', {}]));
+    };
+
+    ws.onmessage = (e) => {
+      const [, , topic, event, payload] = JSON.parse(e.data);
+      if (event === 'edge_alert' || event === 'phx_reply') {
+        if (payload.edges) payload.edges.forEach(ingestGame);
+        if (payload.game_id) ingestGame(payload);
+      }
+    };
+
+    ws.onclose = () => {
+      state.wsConnected = false;
+      document.getElementById('ws-banner').classList.add('show');
+      setTimeout(connectWS, 5000);
+    };
+
+    ws.onerror = () => {
+      document.getElementById('ws-banner').classList.add('show');
+    };
+  } catch(e) {
+    document.getElementById('ws-banner').classList.add('show');
+  }
+}
+
+function ingestGame(game) {
+  const prev = state.games[game.game_id];
+  state.games[game.game_id] = game;
+  if (game.edge) {
+    addAlert(game);
+    state.stats.edges++;
+    if (game.edge.confidence === 'high') state.stats.high++;
+  }
+  renderCard(game, prev);
+  updateStats();
+}
+
+// ── Simulate live odds movement ───────────────────────
+function simulateLiveMovement() {
+  Object.keys(state.games).forEach(id => {
+    const game = state.games[id];
+    Object.keys(game.sources).forEach(src => {
+      const drift = (Math.random() - 0.5) * 0.012;
+      let h = Math.min(0.97, Math.max(0.03, game.sources[src].home + drift));
+      game.sources[src].home = parseFloat(h.toFixed(3));
+      game.sources[src].away = parseFloat((1 - h).toFixed(3));
+      game.sources[src]._drift = drift;
+    });
+    // Recalculate edge
+    if (game.sources.polymarket) {
+      const books = Object.entries(game.sources)
+        .filter(([k]) => k !== 'polymarket')
+        .map(([,v]) => v.home);
+      if (books.length) {
+        const fair = books.reduce((a,b) => a+b, 0) / books.length;
+        const edgeCents = Math.round((fair - game.sources.polymarket.home) * 100);
+        if (Math.abs(edgeCents) >= 3) {
+          game.edge = {
+            side: edgeCents > 0 ? 'home' : 'away',
+            team: edgeCents > 0 ? game.home : game.away,
+            polymarket_price: game.sources.polymarket.home,
+            fair_value: parseFloat(fair.toFixed(3)),
+            edge_cents: Math.abs(edgeCents),
+            confidence: Math.abs(edgeCents) >= 10 ? 'high' : Math.abs(edgeCents) >= 6 ? 'medium' : 'low'
+          };
+        } else {
+          game.edge = null;
+        }
+      }
+    }
+    updateCardInPlace(game);
+  });
+}
+
+// ── Countdown & scan cycle ────────────────────────────
+function startCountdown() {
+  state.scanCountdown = 60;
+  const el = document.getElementById('scan-countdown');
+  const interval = setInterval(() => {
+    state.scanCountdown--;
+    el.textContent = `Next scan: ${state.scanCountdown}s`;
+    if (state.scanCountdown <= 0) {
+      clearInterval(interval);
+      state.stats.scans++;
+      state.stats.edgeHistory.push(Object.values(state.games).filter(g => g.edge).length);
+      if (state.stats.edgeHistory.length > 20) state.stats.edgeHistory.shift();
+      drawSparkline();
+      updateStats();
+      startCountdown();
+    }
+  }, 1000);
+}
+
+// ── Ticker ────────────────────────────────────────────
+function buildTicker() {
+  const sources = ['polymarket','kalshi','draftkings','fanduel','betmgm'];
+  const items = [];
+  Object.values(state.games).forEach(g => {
+    sources.forEach(src => {
+      if (g.sources[src]) {
+        const h = g.sources[src].home;
+        const cls = (g.sources[src]._drift || 0) > 0 ? 'up' : 'down';
+        const arrow = (g.sources[src]._drift || 0) > 0 ? '▲' : '▼';
+        items.push(`<span class="ticker-item">
+          <span class="ticker-label">${src.toUpperCase()} ${g.away}/${g.home}</span>
+          <span class="ticker-val ${cls}">${pct(h)} / ${pct(1-h)} ${arrow}</span>
+        </span>`);
+      }
+    });
+  });
+  const html = items.join('') + items.join(''); // doubled for seamless loop
+  document.getElementById('ticker-track').innerHTML = html;
+}
+
+// ── Render all cards ──────────────────────────────────
+function renderAll() {
+  const grid = document.getElementById('edges-grid');
+  grid.innerHTML = '';
+  const games = filteredGames();
+  if (!games.length) {
+    grid.innerHTML = `<div class="empty-state">
+      <h3>No edges found</h3>
+      <p>Scanner is running every 60 seconds.<br>Edges will appear when prices diverge.</p>
+    </div>`;
+    return;
+  }
+  games.forEach(g => {
+    const el = buildCard(g);
+    grid.appendChild(el);
+  });
+  updateCounts();
+  updateStats();
+  buildTicker();
+}
+
+function filteredGames() {
+  let games = Object.values(state.games);
+  if (state.filter.sport !== 'all') games = games.filter(g => g.sport === state.filter.sport);
+  games = games.filter(g => g.edge && g.edge.edge_cents >= state.filter.minEdge);
+  if (state.filter.sort === 'edge') games.sort((a,b) => b.edge.edge_cents - a.edge.edge_cents);
+  else if (state.filter.sort === 'confidence') {
+    const order = { high: 0, medium: 1, low: 2 };
+    games.sort((a,b) => order[a.edge.confidence] - order[b.edge.confidence]);
+  }
+  return games;
+}
+
+// ── Build a card DOM element ──────────────────────────
+const SOURCE_ORDER = ['polymarket','kalshi','draftkings','fanduel','betmgm'];
+
+function buildCard(game) {
+  const el = document.createElement('div');
+  el.className = `edge-card confidence-${game.edge?.confidence || 'low'}`;
+  el.id = `card-${game.game_id}`;
+  el.innerHTML = cardHTML(game);
+  return el;
+}
+
+function cardHTML(game) {
+  const e = game.edge;
+  if (!e) return '';
+  const oddsHTML = SOURCE_ORDER.map(src => {
+    const s = game.sources[src];
+    if (!s) return '';
+    const isMkt = src === 'polymarket' || src === 'kalshi';
+    return `<div class="odds-cell ${isMkt ? src : ''}">
+      <div class="odds-source">${src === 'draftkings' ? 'DK' : src === 'fanduel' ? 'FD' : src === 'betmgm' ? 'MGM' : src.slice(0,4).toUpperCase()}</div>
+      <div class="odds-values">
+        <div class="odds-team-row">
+          <span class="odds-team">${game.away}</span>
+          <span class="odds-num" id="odds-${game.game_id}-${src}-away">${pct(s.away)}</span>
+        </div>
+        <div class="odds-team-row">
+          <span class="odds-team">${game.home}</span>
+          <span class="odds-num" id="odds-${game.game_id}-${src}-home">${pct(s.home)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="card-top">
+      <div class="game-info">
+        <div class="game-matchup">${game.away} vs ${game.home}</div>
+        <div class="game-meta">
+          <span class="sport-badge">${game.sport.toUpperCase()}</span>
+          <span>BUY ${e.team} on Polymarket</span>
+          <span class="confidence-pill">${e.confidence.toUpperCase()} CONF</span>
+        </div>
+      </div>
+      <div class="edge-badge">
+        <div class="edge-value" id="edge-val-${game.game_id}">+${e.edge_cents}¢</div>
+        <div class="edge-label">EDGE vs BOOKS</div>
+      </div>
+    </div>
+    <div class="odds-row">${oddsHTML}</div>
+  `;
+}
+
+// ── Update a single card in-place (live odds) ─────────
+function updateCardInPlace(game) {
+  const card = document.getElementById(`card-${game.game_id}`);
+  if (!card) {
+    // card doesn't exist yet — might now qualify
+    if (game.edge && game.edge.edge_cents >= state.filter.minEdge) {
+      if (state.filter.sport === 'all' || state.filter.sport === game.sport) {
+        const el = buildCard(game);
+        document.getElementById('edges-grid').prepend(el);
+      }
+    }
+    return;
+  }
+
+  // Card exists — update odds numbers
+  SOURCE_ORDER.forEach(src => {
+    const s = game.sources[src];
+    if (!s) return;
+    ['home','away'].forEach(side => {
+      const el = document.getElementById(`odds-${game.game_id}-${src}-${side}`);
+      if (!el) return;
+      const newVal = pct(s[side]);
+      if (el.textContent !== newVal) {
+        el.textContent = newVal;
+        el.classList.remove('moved-up','moved-down');
+        void el.offsetWidth;
+        el.classList.add((s._drift || 0) > 0 ? 'moved-up' : 'moved-down');
+      }
+    });
+  });
+
+  // Update edge value
+  const edgeEl = document.getElementById(`edge-val-${game.game_id}`);
+  if (edgeEl && game.edge) {
+    edgeEl.textContent = `+${game.edge.edge_cents}¢`;
+    card.className = `edge-card confidence-${game.edge.confidence}`;
+  }
+
+  // Flash the card
+  card.classList.remove('flash');
+  void card.offsetWidth;
+  card.classList.add('flash');
+
+  updateCounts();
+  buildTicker();
+}
+
+function renderCard(game, prev) {
+  const card = document.getElementById(`card-${game.game_id}`);
+  if (card) {
+    card.innerHTML = cardHTML(game);
+    card.className = `edge-card confidence-${game.edge?.confidence || 'low'} flash`;
+  } else {
+    const el = buildCard(game);
+    document.getElementById('edges-grid').prepend(el);
+  }
+}
+
+// ── Alert feed ────────────────────────────────────────
+function addAlert(game) {
+  const now = new Date();
+  const time = now.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const item = { game, time };
+  state.alerts.unshift(item);
+  if (state.alerts.length > 30) state.alerts.pop();
+  renderAlerts();
+}
+
+function renderAlerts() {
+  const feed = document.getElementById('alert-feed');
+  if (!state.alerts.length) return;
+  feed.innerHTML = state.alerts.slice(0, 12).map(({ game, time }) => {
+    const e = game.edge;
+    return `<div class="alert-item">
+      <span class="alert-dot ${e.confidence}"></span>
+      <div class="alert-body">
+        <div class="alert-game">${game.away} vs ${game.home}</div>
+        <div class="alert-detail">${game.sport.toUpperCase()} · +${e.edge_cents}¢ edge on ${e.team}</div>
+      </div>
+      <span class="alert-time">${time}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Stats ─────────────────────────────────────────────
+function updateStats() {
+  const games = Object.values(state.games).filter(g => g.edge);
+  document.getElementById('stat-edges').textContent = state.stats.edges;
+  document.getElementById('stat-scans').textContent  = state.stats.scans;
+  document.getElementById('stat-high').textContent   = state.stats.high;
+  const avg = games.length ? Math.round(games.reduce((s,g) => s + g.edge.edge_cents, 0) / games.length) : 0;
+  document.getElementById('stat-avg').textContent = `${avg}¢`;
+}
+
+function updateCounts() {
+  const sports = ['all','nba','nfl','mlb','nhl','ufc','soccer'];
+  sports.forEach(sp => {
+    const count = sp === 'all'
+      ? Object.values(state.games).filter(g => g.edge).length
+      : Object.values(state.games).filter(g => g.sport === sp && g.edge).length;
+    const el = document.getElementById(`count-${sp}`);
+    if (el) el.textContent = count;
+  });
+}
+
+// ── Sparkline ─────────────────────────────────────────
+function drawSparkline() {
+  const canvas = document.getElementById('sparkline');
+  const ctx = canvas.getContext('2d');
+  const data = state.stats.edgeHistory;
+  canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+  canvas.height = 36 * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  const w = canvas.offsetWidth, h = 36;
+  const max = Math.max(...data, 1);
+  ctx.clearRect(0, 0, w, h);
+  const step = w / (data.length - 1 || 1);
+  const pts = data.map((v, i) => [i * step, h - (v / max) * (h - 6)]);
+  ctx.beginPath();
+  ctx.moveTo(...pts[0]);
+  pts.slice(1).forEach(p => ctx.lineTo(...p));
+  ctx.strokeStyle = '#00FFB2';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Fill
+  ctx.lineTo(w, h); ctx.lineTo(0, h);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,255,178,0.08)';
+  ctx.fill();
+  const latest = data[data.length - 1];
+  document.getElementById('spark-latest').textContent = latest !== undefined ? latest : '--';
+}
+
+// ── Timestamp ─────────────────────────────────────────
+function updateTimestamp() {
+  const el = document.getElementById('last-update');
+  el.textContent = new Date().toLocaleTimeString();
+}
+
+// ── Helpers ───────────────────────────────────────────
+function pct(v) { return `${Math.round(v * 100)}¢`; }
+
+// ── Filter UI wiring ──────────────────────────────────
+document.querySelectorAll('[data-sport]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-sport]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.filter.sport = btn.dataset.sport;
+    renderAll();
+  });
+});
+
+document.querySelectorAll('[data-sort]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-sort]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.filter.sort = btn.dataset.sort;
+    renderAll();
+  });
+});
+
+document.querySelectorAll('[data-edge]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-edge]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.filter.minEdge = parseInt(btn.dataset.edge);
+    renderAll();
+  });
+});
+
+// ── Boot ──────────────────────────────────────────────
+seedData();
+drawSparkline();
+connectWS();
+startCountdown();
+
+// Live odds animation every 3s
+setInterval(() => {
+  simulateLiveMovement();
+  updateTimestamp();
+}, 3000);
+
+// Full re-render every 60s (keeps sort order fresh)
+setInterval(renderAll, 60000);
+</script>
+</body>
 </html>

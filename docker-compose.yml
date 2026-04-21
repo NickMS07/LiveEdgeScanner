@@ -1,0 +1,57 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: edge_api
+      POSTGRES_PASSWORD: edge_api_dev
+      POSTGRES_DB: edge_api_dev
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U edge_api"]
+      interval: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD","redis-cli","ping"]
+      interval: 5s
+      retries: 5
+
+  api:
+    build: {context: ./edge_api, dockerfile: Dockerfile}
+    ports: ["4000:4000"]
+    environment:
+      DATABASE_URL: ecto://edge_api:edge_api_dev@db/edge_api_dev
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY_BASE: "CHANGE_IN_PRODUCTION"
+      SCRAPER_API_KEY: "your-secret-scraper-key"
+      PHX_HOST: localhost
+      PORT: 4000
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  scraper-polymarket:
+    build: {context: ./scrapers, dockerfile: Dockerfile}
+    command: ["node","polymarket.js"]
+    environment:
+      EDGE_API_URL: http://api:4000
+      SCRAPER_API_KEY: "your-secret-scraper-key"
+      SCRAPE_INTERVAL: "60000"
+    depends_on: [api]
+
+  scraper-sportsbooks:
+    build: {context: ./scrapers, dockerfile: Dockerfile}
+    command: ["node","sportsbooks.js"]
+    environment:
+      EDGE_API_URL: http://api:4000
+      SCRAPER_API_KEY: "your-secret-scraper-key"
+      SCRAPE_INTERVAL: "60000"
+    depends_on: [api]
+
+volumes:
+  pgdata:

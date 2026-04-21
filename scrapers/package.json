@@ -1,0 +1,19 @@
+{
+  "name": "edge-scanner-scrapers",
+  "version": "1.0.0",
+  "description": "Playwright-based odds scrapers for Live Edge Scanner",
+  "main": "polymarket.js",
+  "scripts": {
+    "scrape": "node polymarket.js",
+    "scrape:polymarket": "node polymarket.js",
+    "scrape:sportsbooks": "node sportsbooks.js",
+    "dev": "nodemon polymarket.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0",
+    "node-fetch": "^3.3.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
